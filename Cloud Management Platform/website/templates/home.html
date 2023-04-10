@@ -1,0 +1,93 @@
+{% extends "base.html" %} 
+{% block title %}Cloud Management Platform{% endblock %} 
+{% block content %}
+
+<div>
+  <form method="post">
+    <label for="start-date">Start date:</label>
+    <input
+      type="date"
+      id="start-date"
+      name="start-date"
+      value="{{ default_start.strftime('%Y-%m-%d') }}"
+    />
+    <label for="end-date">End date:</label>
+    <input
+      type="date"
+      id="end-date"
+      name="end-date"
+      value="{{ default_end.strftime('%Y-%m-%d') }}"
+    />
+    <button type="submit">Submit</button>
+  </form>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Service</th>
+      <th>Total Cost</th>
+    </tr>
+  </thead>
+  <tbody id="cost-usage-table">
+    {% for group in items[0]['Groups'] %} 
+      {% set service = group['Keys'][0] %} 
+      {% set cost = group['Metrics']['UnblendedCost']['Amount'] %}
+      <tr>
+        <td>{{ service }}</td>
+        <td>{{ cost }}</td>
+      </tr>
+    {% endfor %}
+    <tr class="total-row">
+      <td>Total Cost</td>
+      <td>{{ total_cost }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<style>
+  .total-row {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    font-size: 18px;
+  }
+</style>
+
+<script>
+  $(function () {
+    document.addEventListener("DOMContentLoaded", function () {
+      var form = document.querySelector("form");
+      var tableBody = document.getElementById("cost-usage-table");
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var formData = new FormData(form);
+        var urlSearchParams = new URLSearchParams(formData);
+        var selectedMonth = urlSearchParams.get("start-date").slice(0, 7);
+        fetch("/cost_report/" + selectedMonth, {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            tableBody.innerHTML = "";
+            for (var i = 0; i < data.ResultsByTime.length; i++) {
+              var groups = data.ResultsByTime[i].Groups;
+              for (var j = 0; j < groups.length; j++) {
+                var group = groups[j];
+                var row = document.createElement("tr");
+                var serviceName = document.createElement("td");
+                serviceName.textContent = group.Keys[0];
+                var cost = document.createElement("td");
+                cost.textContent = "$" + group.Metrics.UnblendedCost.Amount;
+                row.appendChild(serviceName);
+                row.appendChild(cost);
+                tableBody.appendChild(row);
+              }
+            }
+          });
+      });
+    });
+  });
+</script>
+
+{% endblock %}
